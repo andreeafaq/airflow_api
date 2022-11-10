@@ -7,7 +7,6 @@ const errorHandler = require('./errorHandler').errorHandler
 const sqlBuilder = require('./processor').sqlBuilder
 const responseBuilder = require('./processor').responseBuilder
 const validateQuery = require('./validator').validateQuery
-console.log(`/${config.API_ENDPOINT}`)
 
 
 app.get(`/${config.API_ENDPOINT}`, async (req, res) => {
@@ -15,7 +14,7 @@ app.get(`/${config.API_ENDPOINT}`, async (req, res) => {
     const q = sqlBuilder(req)
     const sqlResult = await executeQuery(q)
     res.status(200).json(responseBuilder(req, sqlResult))
-});
+})
 
 app.use(errorHandler)
-app.listen(config.API_PORT, () => console.log(`Listening on port ${config.API_PORT}`))
+app.listen(config.API_PORT, () => console.log(`Listening on port ${config.API_PORT}...\nAPI Endpoint: /${config.API_ENDPOINT}`))

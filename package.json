@@ -2,7 +2,7 @@
   "name": "airflow_api",
   "version": "1.0.0",
   "description": "AirFlow API",
-  "main": "server.js",
+  "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "test": "nodemon --trace-warnings app.js"
