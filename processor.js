@@ -1,8 +1,14 @@
+const config = require('./connector').config
 const hasProperty = require('./commonFunctions').hasProperty
 const isEmptyObj = require('./commonFunctions').isEmptyObj
 const difference = require('./commonFunctions').difference
+const intersect = require('./commonFunctions').intersect
 const isArray = require('./commonFunctions').isArray
-
+const settings = require('./settings.json')
+const fieldsMapping =  Object.entries(settings).filter(([k, v]) => v.output).reduce((obj, [k, v]) => {
+    obj[k] = v.definition
+    return obj
+}, {})
 
 
 const requestInitializer = (req) => {
@@ -17,23 +23,14 @@ const requestInitializer = (req) => {
 }
 
 const handlerOutputFields = (outputFields, filterFields, orderByFields) => {
-    const selectFields = {
-        'RunID': 'CAST(id AS CHAR(50)) AS RunID',
-        'ProcesID': 'NULL AS ProcesID',
-        'System': "SUBSTRING_INDEX(SUBSTRING_INDEX(dag_id,'_',2),'_',-1) AS `System`",
-        'Table': "SUBSTRING_INDEX(SUBSTRING_INDEX(dag_id,'_',3),'_',-1) AS `Table`",
-        'JobType': `SUBSTRING_INDEX(dag_id,'_',1) AS JobType`,
-        'State': 'state AS State',
-        'StartDateTs': 'start_date AS StartDateTs',
-        'EndDateTs': 'end_date AS EndDateTs',
-        'ReportDt': 'DATE(start_date) AS ReportDt',
-        'JobDurationSec': 'CAST(TIMESTAMPDIFF(SECOND, start_date, end_date) AS CHAR(150)) AS JobDurationSec',
-        'TaskDurationSec': 'CAST(TIMESTAMPDIFF(SECOND, start_date, end_date) AS CHAR(150)) TaskDurationSec'
-    }
-    if (outputFields.length > 0)
-        for (const selectField of Object.keys(selectFields))
-            if ((!outputFields.includes(selectField)) && (!filterFields.includes(selectField)) && (!orderByFields.includes(selectField)))
-                delete selectFields[selectField]
+    const selectFields = Object.entries(fieldsMapping).map(([k, v]) => ([k, `${v} AS \`${k}\``])).reduce((obj, [k, v]) => {
+        obj[k] = (typeof(v) == 'string') ? v.trim() : v
+        return obj
+    }, {})
+    const removeFields = difference(Object.keys(selectFields), [...outputFields, ...filterFields, ...orderByFields])
+    if (removeFields.length)
+        for (const removeField of removeFields)
+            delete selectFields[removeField]
     return Object.values(selectFields).join(', ')
 }
 
@@ -50,27 +47,13 @@ const handlerOrderBy = (orderBy) => {
             orderElement[1] = 'ASC'
         else
             orderElement[1] = orderElement[1].toUpperCase()
-        if (['System', 'Table'].includes(orderElement[0]))
-            orderElement[0] = ['`', orderElement[0], '`'].join('')
+        orderElement[0] = '`' + orderElement[0] + '`'
         returnValue.push(orderElement.join(' '))
     }
     return returnValue.join(', ')
 }
 
 const handlerFilters = (filterField, filterValues, isTimestamp=false) => {
-    const filterMapping = {
-        RunID: 'CAST(id AS CHAR(50))',
-        ProcesID: 'NULL',
-        System: "SUBSTRING_INDEX(SUBSTRING_INDEX(dag_id,'_',2),'_',-1)",
-        Table: "SUBSTRING_INDEX(SUBSTRING_INDEX(dag_id,'_',3),'_',-1)",
-        JobType: "SUBSTRING_INDEX(dag_id,'_',1)",
-        State: 'state',
-        StartDateTs: 'start_date',
-        EndDateTs: 'end_date',
-        ReportDt: 'DATE(start_date)',
-        JobDurationSec: 'CAST(TIMESTAMPDIFF(SECOND, start_date, end_date) AS CHAR(150))',
-        TaskDurationSec: 'CAST(TIMESTAMPDIFF(SECOND, start_date, end_date) AS CHAR(150))',
-    }
     let returnValue = []
     if (!isArray(filterValues))
         filterValues = [filterValues]
@@ -98,7 +81,7 @@ const handlerFilters = (filterField, filterValues, isTimestamp=false) => {
             operationRight = `'${operationRight.join("', '")}'`
         } else if (operationRight != 'NULL')
             operationRight = `'${operationRight}'`
-        let loopValue = `${filterMapping[filterField]} `
+        let loopValue = `${fieldsMapping[filterField]} `
         switch (operation) {
             case 'eq':
                 loopValue += `= ${operationRight}`
@@ -134,24 +117,29 @@ const handlerFilters = (filterField, filterValues, isTimestamp=false) => {
 
 const sqlBuilder = (req) => {
     let q = 'SELECT <outputFields> FROM dag_run WHERE <filters> ORDER BY <orderBy>'
-    let outputFields = (hasProperty(req.query, 'OutputFields')) ? req.query.OutputFields : []
-    if (typeof(outputFields) == 'string') {
-        outputFields = outputFields.split(',')
-        outputFields = outputFields.map(el => {return el.trim()})
-    }
+    const requestQuery = [...Object.entries(req.query)].reduce((obj, [k, v]) => {
+        obj[k.trim()] = (typeof(v) == 'string') ? v.trim() : v
+        return obj
+    }, {})
+    req.query = requestQuery
+    let outputFields = (hasProperty(req.query, 'OutputFields')) ? req.query.OutputFields : settings.OutputFields.default
+    outputFields = outputFields.split(',')
+    outputFields = outputFields.map(el => {return el.trim()})
     let filterFields = Object.keys(req.query)
     filterFields = filterFields.map(el => {return el.trim()})
-    if ((filterFields.includes('ReportDtAfter')) && (!filterFields.includes('ReportDt')))
-        filterFields.push('ReportDt')
-    filterFields = difference(filterFields, ['OutputFields', 'OrderBy', 'ReportDtAfter'])
-    const orderBy = (hasProperty(req.query, 'OrderBy')) ? req.query.OrderBy : 'StartDateTs'
+    let customFields = Object.entries(settings).filter(([k, v]) => (!v.output && v.operator)).map(([k, v]) => k)
+    customFields = intersect(customFields, filterFields)
+    if (customFields.length)
+        for (let customField of customFields)
+            if ((filterFields.includes(customField)) && (!filterFields.includes(settings[customField].field)))
+                filterFields = filterFields.map(e => (e == customField) ? settings[customField].field : customField)
+    filterFields = difference(filterFields, [...['OutputFields', 'OrderBy'], ...customFields])
+    const orderBy = (hasProperty(req.query, 'OrderBy')) ? req.query.OrderBy : settings.OrderBy.default
     let orderByFields = []
     for (let orderElement of orderBy.split(',')) {
         orderElement = orderElement.trim()
         orderElement = orderElement.split(':')
         orderElement = orderElement.map(el => {return el.trim()})
-        if (['System', 'Table'].includes(orderElement[0]))
-            orderElement[0] = ['`', orderElement[0], '`'].join('')
         orderByFields.push(orderElement[0])
     }
     q = q.replace('<outputFields>', handlerOutputFields(outputFields, filterFields, orderByFields))
@@ -159,14 +147,18 @@ const sqlBuilder = (req) => {
     let filters = []
     for (param of Object.keys(req.query))
         if (!['OutputFields', 'OrderBy'].includes(param)) {
-            let isTimestamp = (['StartDateTs', 'EndDateTs'].includes(param)) ? true : false
-            if (param != 'ReportDtAfter')
+            let field = settings[param]
+            let isTimestamp = (field.isTimestamp) ? field.isTimestamp : false
+            if (!field.field)
                 filters = [...filters, ...handlerFilters(param, req.query[param], isTimestamp)]
-            else
-                filters = [...filters, ...handlerFilters('ReportDt', `greater_than_or_eq_to:${req.query[param]}`, isTimestamp)]
+            else {
+                const filterFiled = field.field
+                const operator = field.operator
+                filters = [...filters, ...handlerFilters(filterFiled, `${operator}:${req.query[param]}`, isTimestamp)]
+            }
         }
     if (filters.length == 0) {
-        const numberOfDaysAgo = 14
+        const numberOfDaysAgo = config.API_DEFAULT_START_DATE_DAYS_AGO
         const daysAgo = new Date(new Date().setDate((new Date()).getDate() - numberOfDaysAgo)).toISOString().split('T')[0] + ' 00:00:00'
         filters = [...filters, ...handlerFilters('StartDateTs', `greater_than_or_eq_to:${daysAgo}`, true)]
     }

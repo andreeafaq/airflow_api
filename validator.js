@@ -1,70 +1,11 @@
 const difference = require('./commonFunctions').difference
 const isArray = require('./commonFunctions').isArray
+const settings = require('./settings.json')
+const allowedFields = Object.entries(settings).filter(([k, v]) => v.output).map(([k, v]) => k)
+const allFields = Object.entries(settings).map(([k, v]) => k)
 
-const validateOutputFields = (outputFields) =>{
-    if (isArray(outputFields))
-        throw new Error('Usage of multiple OutputFields in the same query is not supported')
-    const allowedFields = [
-        'RunID',
-        'ProcesID',
-        'System',
-        'Table',
-        'JobType',
-        'State',
-        'StartDateTs',
-        'EndDateTs',
-        'ReportDt',
-        'JobDurationSec',
-        'TaskDurationSec',
-    ]
-    outputFields = outputFields.split(',')
-    outputFields = outputFields.map(el => {return el.trim()})
-    const validate = difference(outputFields, allowedFields)
-    if (validate.length > 0)
-        throw new Error(`Unsupported output fields: ${JSON.stringify(validate)}`)
-    return true
-}
 
-const validateOrderBy = (orderBy) => {
-    if (isArray(orderBy))
-        throw new Error('Usage of multiple OrderBy in the same query is not supported')
-    const allowedOrderFields = [
-        'RunID',
-        'ProcesID',
-        'System',
-        'Table',
-        'JobType',
-        'State',
-        'StartDateTs',
-        'EndDateTs',
-        'ReportDt',
-        'JobDurationSec',
-        'TaskDurationSec'
-    ]
-    orderBy = orderBy.split(',')
-    orderBy = orderBy.map(el => {return el.trim()})
-    let validate = []
-    for (const o of orderBy) {
-        let orderElement = o.split(':')
-        orderElement = orderElement.map(el => {return el.trim()})
-        if ((orderElement.length == 2 ) && (orderElement[1] == ''))
-            orderElement[1] = 'ASC'
-        const validateElement = allowedOrderFields.includes(orderElement[0])
-        if (!validateElement)
-            validate.push(o)
-        else if (orderElement.length > 2)
-            validate.push(o)
-        else if ((orderElement.length == 2 ) && (!['ASC', 'DESC'].includes(orderElement[1].toUpperCase())))
-                validate.push(o)
-    }
-    if (validate.length > 0) {
-        throw new Error(`Unsupported OrderBy fields: ${JSON.stringify(validate)}`)
-    } else {
-        return true
-    }
-}
-
-const vallidateDate = (value, isTimestamp=true) => {
+const validateDate = (value, isTimestamp=true) => {
     const regex = isTimestamp
                   ? /\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/
                   : /^\d{4}-\d{2}-\d{2}$/
@@ -81,95 +22,132 @@ const vallidateDate = (value, isTimestamp=true) => {
         return false
 }
 
-const validateOther = (filterName, filterValues, allowedOperators=null, validateDate=0) => {
-    if (!isArray(filterValues))
-        filterValues = [filterValues]
-    filterCombinations = []
-    for (const filterValue of filterValues) {
-        let isTimestamp = false
-        let modifiedFilterValue = filterValue
-        if (validateDate != 0)
-            if ([1, '1', true, 'true', 'TRUE', 'True'].includes(validateDate))
-                isTimestamp = true
-        if (isTimestamp) {
-            const tsRegexColon = /\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/g
-            modifiedFilterValue = modifiedFilterValue.replace(tsRegexColon, (match) => {
-                return match.replace(/:/g, '`')
-            })
+const VALIDATE = {
+    "validateOutputFields": (requestQuery, parameter) =>{
+        if (parameter != 'OutputFields')
+            throw new Error('Improper usage of the "OutputFields" validator')
+        let outputFields = requestQuery['OutputFields']
+        if (outputFields) {
+            if (isArray(outputFields))
+                throw new Error('Usage of multiple OutputFields in the same query is not supported')
+            outputFields = outputFields.split(',')
+            outputFields = outputFields.map(el => {return el.trim()})
+            const validate = difference(outputFields, allowedFields)
+            if (validate.length > 0)
+                throw new Error(`Unsupported output fields: ${JSON.stringify(validate)}`)
         }
-        let filtSplit = modifiedFilterValue.split(':')
-        filtSplit = filtSplit.map(el => {return el.trim()})
-        for (const f of filtSplit)
-            if (f == '')
-                throw new Error(`Unsupported format for ${filterName}: ${filterValue}`)
-        if (filtSplit.length > 2)
-            throw new Error(`Unsupported format for ${filterName}: ${filterValue}`)
-        if ((filtSplit.length == 2) && (allowedOperators) && (allowedOperators.length > 0) && (!allowedOperators.includes(filtSplit[0])))
-            throw new Error(`Unsupported format for ${filterName}: ${filterValue}`)
-        if (validateDate != 0) {
-            let dateValues = (filtSplit.length == 1) ? filtSplit[0] : filtSplit[1]
-            dateValues = dateValues.split(',')
-            dateValues = dateValues.map(el => {return el.trim()})
-            for (let dateValue of dateValues) {
-                dateValue = dateValue.replace(/`/g, ':')
-                if (!vallidateDate(dateValue, isTimestamp))
-                    throw new Error(`Unsupported format for ${filterName}: ${filterValue}`)
+        return true
+    },
+    "validateOrderBy": (requestQuery, parameter) => {
+        if (parameter != 'OrderBy')
+            throw new Error('Improper usage of the "OrderBy" validator')
+        let orderBy = requestQuery['OrderBy']
+        if (orderBy) {
+            if (isArray(orderBy))
+                throw new Error('Usage of multiple OrderBy in the same query is not supported')
+            orderBy = orderBy.split(',')
+            orderBy = orderBy.map(el => {return el.trim()})
+            let validate = []
+            for (const o of orderBy) {
+                let orderElement = o.split(':')
+                orderElement = orderElement.map(el => {return el.trim()})
+                if ((orderElement.length == 2 ) && (orderElement[1] == ''))
+                    orderElement[1] = 'ASC'
+                const validateElement = allowedFields.includes(orderElement[0])
+                if (!validateElement)
+                    validate.push(o)
+                else if (orderElement.length > 2)
+                    validate.push(o)
+                else if ((orderElement.length == 2 ) && (!['ASC', 'DESC'].includes(orderElement[1].toUpperCase())))
+                        validate.push(o)
             }
+            if (validate.length > 0)
+                throw new Error(`Unsupported OrderBy fields: ${JSON.stringify(validate)}`)
         }
-        let operator = 'eq'
-        if (filtSplit.length == 2)
-            operator = filtSplit[0]
-        if (!filterCombinations.includes(`${filterName}-${operator}`))
-            filterCombinations.push(`${filterName}-${operator}`)
-        else
-            throw new Error(`Invalid query: the operator "${operator}" is used more than once for the same filter "${filterName}"`)
-    }
-    return true
-}
-
-const validateQuery = (requestQuery) => {
-    const allowedParams = [
-        'ReportDtAfter',
-        'StartDateTs',
-        'EndDateTs',
-        'ReportDt',
-        'State',
-        'JobType',
-        'System',
-        'Table',
-        'OutputFields',
-        'OrderBy'
-    ]
-    const queryFields = Object.keys(requestQuery)
-    const validate = difference(queryFields, allowedParams)
-    if (validate.length > 0)
-        throw new Error(`Unsupported parameters in the query: ${JSON.stringify(validate)}`)
-    else if ((queryFields.includes('ReportDtAfter')) && (queryFields.includes('ReportDt')))
-        throw new Error('Conflicting parameters in the query: "ReportDtAfter" and "ReportDt" cannot be used simultaneously')
-    else if ((queryFields.includes('ReportDtAfter')) && (isArray(requestQuery.ReportDtAfter)))
-        throw new Error('Usage of multiple ReportDtAfter in the same query is not supported')
-    else {
-        for (const param of Object.keys(requestQuery)) {
-            if (param == 'OutputFields')
-                validateOutputFields(requestQuery.OutputFields)
-            else if (param == 'OrderBy')
-                validateOrderBy(requestQuery.OrderBy)
-            else {
-                let allowedOperators = null
-                let validateDate = 0
-                if (['StartDateTs', 'EndDateTs', 'ReportDt'].includes(param)) {
-                    validateDate = (param == 'ReportDt') ? 2 : 1
-                    allowedOperators = ['eq', 'not_eq', 'lower_than', 'lower_than_or_eq_to', 'greater_than', 'greater_than_or_eq_to', 'is_in', 'not_in']
-                } else if(param == 'ReportDtAfter') {
-                    validateDate = 2
-                    allowedOperators = null
-                } else
-                    allowedOperators = ['eq', 'not_eq', 'is_in', 'not_in']
-                validateOther(param, requestQuery[param], allowedOperators, validateDate)
+        return true
+    },
+    "validateOther": (requestQuery, parameter) => {
+        let filterValues = requestQuery[parameter]
+        if (!isArray(filterValues))
+            filterValues = [filterValues]
+        const field = settings[parameter]
+        const allowedOperators = (field.operators)
+                                 ? field.operators
+                                 : ((field.operator) ? null: 'eq')
+        const isTimestamp = (field.isTimestamp)
+                            ? true
+                            : (field.field && settings[field.field].isTimestamp) ? true : false
+        const isDate = (field.isDate)
+                       ? true
+                       : (field.field && settings[field.field].isDate) ? true : false
+        filterCombinations = []
+        for (const filterValue of filterValues) {
+            let modifiedFilterValue = filterValue
+            if (isTimestamp) {
+                const tsRegexColon = /\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}/g
+                modifiedFilterValue = modifiedFilterValue.replace(tsRegexColon, (match) => {
+                    return match.replace(/:/g, '`')
+                })
             }
+            let filtSplit = modifiedFilterValue.split(':')
+            filtSplit = filtSplit.map(el => {return el.trim()})
+            for (const f of filtSplit)
+                if (f == '')
+                    throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
+            if (filtSplit.length > 2)
+                throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
+            if ((filtSplit.length == 2) && (allowedOperators) && (allowedOperators.length > 0) && (!allowedOperators.includes(filtSplit[0])))
+                throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
+            if ((filtSplit.length != 1) && (!allowedOperators))
+                throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
+            if ((filtSplit.length == 1) && (!allowedOperators != 'eq') && (!field.field))
+                throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
+            if (isDate || isTimestamp) {
+                let dateValues = (filtSplit.length == 1) ? filtSplit[0] : filtSplit[1]
+                dateValues = dateValues.split(',')
+                dateValues = dateValues.map(el => {return el.trim()})
+                for (let dateValue of dateValues) {
+                    if (isTimestamp)
+                        dateValue = dateValue.replace(/`/g, ':')
+                    if (!validateDate(dateValue, isTimestamp))
+                        throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
+                }
+            }
+            let operator = 'eq'
+            if (filtSplit.length == 2)
+                operator = filtSplit[0]
+            if (!filterCombinations.includes(`${parameter}-${operator}`))
+                filterCombinations.push(`${parameter}-${operator}`)
+            else
+                throw new Error(`Invalid query: the operator "${operator}" is used more than once for the same filter "${parameter}"`)
         }
         return true
     }
+}
+
+const validateQuery = (requestQuery) => {
+    requestQuery = [...Object.entries(requestQuery)].reduce((obj, [k, v]) => {
+        obj[k.trim()] = (typeof(v) == 'string') ? v.trim() : v
+        return obj
+    }, {})
+    let queryFields = Object.keys(requestQuery)
+    const validate = difference(queryFields, allFields)
+    if (validate.length > 0)
+        throw new Error(`Unsupported parameters in the query: ${JSON.stringify(validate)}`)
+    const customFields = Object.entries(settings).filter(([k, v]) => (!v.output && v.operator)).map(([k, v]) => k)
+    if (customFields.length)
+        for (customField of customFields) {
+            const field = settings[customField].field
+            if ((queryFields.includes(customField)) && (queryFields.includes(field)))
+                throw new Error(`Conflicting parameters in the query: "${customField}" and "${field}" cannot be used simultaneously`)
+            if ((queryFields.includes(customField)) && (isArray(requestQuery[customField])))
+                throw new Error(`Usage of multiple "${customField}" in the same query is not supported`)
+        }
+    for (const param of queryFields) {
+        const validator = settings[param].validator
+        VALIDATE[validator](requestQuery, param)
+    }
+    return true
 }
 
 
