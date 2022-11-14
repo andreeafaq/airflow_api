@@ -2,70 +2,70 @@
     "RunID": {
         "output": true,
         "definition": "CAST(id AS CHAR(50))",
-        "operators":  ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "ProcesID": {
         "output": true,
         "definition": "NULL",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "System": {
         "output": true,
         "definition": "SUBSTRING_INDEX(SUBSTRING_INDEX(dag_id,'_',2),'_',-1)",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "Table": {
         "output": true,
         "definition": "SUBSTRING_INDEX(SUBSTRING_INDEX(dag_id,'_',3),'_',-1)",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "JobType": {
         "output": true,
         "definition": "SUBSTRING_INDEX(dag_id,'_',1)",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "State": {
         "output": true,
         "definition": "state",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "StartDateTs": {
         "output": true,
         "definition": "start_date",
-        "operators": ["eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther",
         "isTimestamp": true
     },
     "EndDateTs": {
         "output": true,
         "definition": "end_date",
-        "operators": ["eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther",
         "isTimestamp": true
     },
     "ReportDt": {
         "output": true,
         "definition": "DATE(start_date)",
-        "operators": ["eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther",
         "isDate": true
     },
     "JobDurationSec": {
         "output": true,
         "definition": "CAST(TIMESTAMPDIFF(SECOND, start_date, end_date) AS CHAR(150))",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "TaskDurationSec": {
         "output": true,
         "definition": "CAST(TIMESTAMPDIFF(SECOND, start_date, end_date) AS CHAR(150))",
-        "operators": ["eq", "not_eq", "is_in", "not_in"],
+        "operators": ["eq", "not_eq", "is_in", "not_in", "like", "not_like"],
         "validator": "validateOther"
     },
     "OutputFields": {

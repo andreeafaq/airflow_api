@@ -73,7 +73,7 @@ const VALIDATE = {
         const field = settings[parameter]
         const allowedOperators = (field.operators)
                                  ? field.operators
-                                 : ((field.operator) ? null: 'eq')
+                                 : ((field.operator) ? null: ['eq'])
         const isTimestamp = (field.isTimestamp)
                             ? true
                             : (field.field && settings[field.field].isTimestamp) ? true : false
@@ -100,9 +100,9 @@ const VALIDATE = {
                 throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
             if ((filtSplit.length != 1) && (!allowedOperators))
                 throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
-            if ((filtSplit.length == 1) && (!allowedOperators != 'eq') && (!field.field))
+            if ((filtSplit.length == 1) && !(allowedOperators.includes('eq')) && (!field.field))
                 throw new Error(`Unsupported format for ${parameter}: ${filterValue}`)
-            if (isDate || isTimestamp) {
+            if ((isDate || isTimestamp) && !(filtSplit.length == 2 && ['like', 'not_like'].includes(filtSplit[0]))) {
                 let dateValues = (filtSplit.length == 1) ? filtSplit[0] : filtSplit[1]
                 dateValues = dateValues.split(',')
                 dateValues = dateValues.map(el => {return el.trim()})

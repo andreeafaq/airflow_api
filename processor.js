@@ -107,6 +107,12 @@ const handlerFilters = (filterField, filterValues, isTimestamp=false) => {
             case 'not_in':
                 loopValue += `NOT IN (${operationRight})`
                 break
+            case 'like':
+                loopValue += `LIKE ${operationRight}`
+                break
+            case 'not_like':
+                loopValue += `NOT LIKE ${operationRight}`
+                break
             default:
                 throw new Error(`Unsupported operation ${operation} in the query filter ${filterField}`)
         }
