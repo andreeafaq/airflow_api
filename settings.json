@@ -70,7 +70,6 @@
     },
     "OutputFields": {
         "output": false,
-        "default": "RunID,ProcesID,System,Table,JobType,State,StartDateTs,EndDateTs,ReportDt,JobDurationSec,TaskDurationSec,RunType",
         "validator": "validateOutputFields"
     },
     "OrderBy": {

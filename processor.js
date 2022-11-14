@@ -122,7 +122,7 @@ const sqlBuilder = (req) => {
         return obj
     }, {})
     req.query = requestQuery
-    let outputFields = (hasProperty(req.query, 'OutputFields')) ? req.query.OutputFields : settings.OutputFields.default
+    let outputFields = (hasProperty(req.query, 'OutputFields')) ? req.query.OutputFields : Object.keys(fieldsMapping).join(',')
     outputFields = outputFields.split(',')
     outputFields = outputFields.map(el => {return el.trim()})
     let filterFields = Object.keys(req.query)
