@@ -40,7 +40,9 @@
 // The filters "ReportDt" and "ReportDtAfter" are dates with the following imposed format "YYYY-MM-DD"
 // The "value" aspect of the "filter=value" in the API calls accounts for 2 possibilities: (1) "operator:value(s)" or simply (2) "value".
 // In case of the filter value being used as version (1) "operator:value(s)", the "operator" can have one of the following values:
-// There are 8 allowed values for the operators: eq, not_eq, lower_than, lower_than_or_eq_to, greater_than, greater_than_or_eq_to, is_in, not_in
+// There are 8 allowed values for the operators: "eq", "not_eq", "lower_than", "lower_than_or_eq_to", "greater_than", "greater_than_or_eq_to", "is_in", "not_in", "like", "not_like"
+// The "like" and "not_like" work with the "%" wildcard for the GET queries. For example the bellow searches for StartDateTs LIKE "2022-11-1% 00%":
+// curl -X GEThttp://localhost:8000/api/etl/monitoring?Table=GlbStaff&StartDateTs=like:2022-11-1%25%2000%25
 // Example of an operator usage ("WHERE StartDateTs >= 2022-11-07 13:30:00")
 // curl -X GET http://localhost:8000/api/etl/monitoring?StartDateTs=greater_than_or_eq_to:2022-11-07%2013%3A30%3A00
 // The StartDateTs, EndDateTs and ReportDt allow the usage of any of the 8 allowed operators
